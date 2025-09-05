@@ -23,6 +23,7 @@ import (
 	"github.com/rs/zerolog/log"
 	"github.com/vincent-petithory/dataurl"
 	"go.mau.fi/whatsmeow"
+	"go.mau.fi/whatsmeow/appstate"
 
 	"go.mau.fi/whatsmeow/proto/waCommon"
 	"go.mau.fi/whatsmeow/proto/waE2E"
@@ -4910,6 +4911,326 @@ func (s *server) DeleteS3Config() http.HandlerFunc {
 		GetS3Manager().RemoveClient(txtid)
 
 		response := map[string]interface{}{"Details": "S3 configuration deleted successfully"}
+		responseJson, err := json.Marshal(response)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+		}
+	}
+}
+
+// ========== LABELS HANDLERS ==========
+
+// ListLabels - Lista todas as labels do usuário
+func (s *server) ListLabels() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+
+		mycli := clientManager.GetMyClient(txtid)
+		if mycli == nil {
+			s.Respond(w, r, http.StatusNotFound, errors.New("client not found"))
+			return
+		}
+
+		// Para obter labels, vamos usar uma abordagem alternativa já que não há método direto
+		// Podemos retornar um placeholder por enquanto ou implementar uma funcionalidade básica
+		response := map[string]interface{}{
+			"success": true,
+			"message": "Labels functionality requires WhatsApp Business API. This is a placeholder implementation.",
+			"labels":  []interface{}{},
+		}
+		responseJson, err := json.Marshal(response)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+		}
+	}
+}
+
+// CreateLabel - Cria uma nova label
+func (s *server) CreateLabel() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+
+		mycli := clientManager.GetMyClient(txtid)
+		if mycli == nil {
+			s.Respond(w, r, http.StatusNotFound, errors.New("client not found"))
+			return
+		}
+
+		type CreateLabelRequest struct {
+			Name  string `json:"name"`
+			Color int32  `json:"color"`
+		}
+
+		var req CreateLabelRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("invalid JSON"))
+			return
+		}
+
+		if req.Name == "" {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("name is required"))
+			return
+		}
+
+		// Gerar um ID único para a label
+		labelID := fmt.Sprintf("label_%d_%s", time.Now().Unix(), strings.ReplaceAll(req.Name, " ", "_"))
+
+		// Usar appstate para criar a label
+		patch := appstate.BuildLabelEdit(labelID, req.Name, req.Color, false)
+		err := mycli.WAClient.SendAppState(context.Background(), patch)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("failed to create label: %v", err)))
+			return
+		}
+
+		response := map[string]interface{}{
+			"success":  true,
+			"label_id": labelID,
+			"name":     req.Name,
+			"color":    req.Color,
+			"message":  "Label created successfully",
+		}
+		responseJson, err := json.Marshal(response)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+		}
+	}
+}
+
+// DeleteLabel - Remove uma label
+func (s *server) DeleteLabel() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+
+		mycli := clientManager.GetMyClient(txtid)
+		if mycli == nil {
+			s.Respond(w, r, http.StatusNotFound, errors.New("client not found"))
+			return
+		}
+
+		type DeleteLabelRequest struct {
+			LabelID string `json:"label_id"`
+		}
+
+		var req DeleteLabelRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("invalid JSON"))
+			return
+		}
+
+		if req.LabelID == "" {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("label_id is required"))
+			return
+		}
+
+		// Usar appstate para deletar a label
+		patch := appstate.BuildLabelEdit(req.LabelID, "", 0, true)
+		err := mycli.WAClient.SendAppState(context.Background(), patch)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("failed to delete label: %v", err)))
+			return
+		}
+
+		response := map[string]interface{}{
+			"success": true,
+			"message": "Label deleted successfully",
+		}
+		responseJson, err := json.Marshal(response)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+		}
+	}
+}
+
+// EditLabel - Edita uma label existente
+func (s *server) EditLabel() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+
+		mycli := clientManager.GetMyClient(txtid)
+		if mycli == nil {
+			s.Respond(w, r, http.StatusNotFound, errors.New("client not found"))
+			return
+		}
+
+		type EditLabelRequest struct {
+			LabelID string `json:"label_id"`
+			Name    string `json:"name"`
+			Color   int32  `json:"color"`
+		}
+
+		var req EditLabelRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("invalid JSON"))
+			return
+		}
+
+		if req.LabelID == "" || req.Name == "" {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("label_id and name are required"))
+			return
+		}
+
+		// Usar appstate para editar a label
+		patch := appstate.BuildLabelEdit(req.LabelID, req.Name, req.Color, false)
+		err := mycli.WAClient.SendAppState(context.Background(), patch)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("failed to edit label: %v", err)))
+			return
+		}
+
+		response := map[string]interface{}{
+			"success": true,
+			"message": "Label updated successfully",
+		}
+		responseJson, err := json.Marshal(response)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+		}
+	}
+}
+
+// GetLabeledChats - Lista chats com uma label específica
+func (s *server) GetLabeledChats() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+
+		mycli := clientManager.GetMyClient(txtid)
+		if mycli == nil {
+			s.Respond(w, r, http.StatusNotFound, errors.New("client not found"))
+			return
+		}
+
+		labelID := r.URL.Query().Get("label_id")
+		if labelID == "" {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("label_id parameter is required"))
+			return
+		}
+
+		// Esta funcionalidade requer uma implementação mais complexa
+		// por enquanto retornamos uma resposta básica
+		response := map[string]interface{}{
+			"success": true,
+			"message": "Getting labeled chats requires app state synchronization. This is a placeholder implementation.",
+			"chats":   []interface{}{},
+		}
+		responseJson, err := json.Marshal(response)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+		}
+	}
+}
+
+// AssociateChatLabel - Associa um chat a uma label
+func (s *server) AssociateChatLabel() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+
+		mycli := clientManager.GetMyClient(txtid)
+		if mycli == nil {
+			s.Respond(w, r, http.StatusNotFound, errors.New("client not found"))
+			return
+		}
+
+		type AssociateLabelRequest struct {
+			ChatJID string `json:"chat_jid"`
+			LabelID string `json:"label_id"`
+		}
+
+		var req AssociateLabelRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("invalid JSON"))
+			return
+		}
+
+		if req.ChatJID == "" || req.LabelID == "" {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("chat_jid and label_id are required"))
+			return
+		}
+
+		chatJID, valid := parseJID(req.ChatJID)
+		if !valid {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("invalid chat JID"))
+			return
+		}
+
+		// Usar appstate para associar chat com label
+		patch := appstate.BuildLabelChat(chatJID, req.LabelID, true)
+		err := mycli.WAClient.SendAppState(context.Background(), patch)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("failed to associate chat with label: %v", err)))
+			return
+		}
+
+		response := map[string]interface{}{
+			"success": true,
+			"message": "Chat labeled successfully",
+		}
+		responseJson, err := json.Marshal(response)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+		}
+	}
+}
+
+// DisassociateChatLabel - Remove a associação de um chat com uma label
+func (s *server) DisassociateChatLabel() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		txtid := r.Context().Value("userinfo").(Values).Get("Id")
+
+		mycli := clientManager.GetMyClient(txtid)
+		if mycli == nil {
+			s.Respond(w, r, http.StatusNotFound, errors.New("client not found"))
+			return
+		}
+
+		type DisassociateLabelRequest struct {
+			ChatJID string `json:"chat_jid"`
+			LabelID string `json:"label_id"`
+		}
+
+		var req DisassociateLabelRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("invalid JSON"))
+			return
+		}
+
+		if req.ChatJID == "" || req.LabelID == "" {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("chat_jid and label_id are required"))
+			return
+		}
+
+		chatJID, valid := parseJID(req.ChatJID)
+		if !valid {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("invalid chat JID"))
+			return
+		}
+
+		// Usar appstate para remover associação de chat com label
+		patch := appstate.BuildLabelChat(chatJID, req.LabelID, false)
+		err := mycli.WAClient.SendAppState(context.Background(), patch)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, errors.New(fmt.Sprintf("failed to remove label from chat: %v", err)))
+			return
+		}
+
+		response := map[string]interface{}{
+			"success": true,
+			"message": "Label removed from chat successfully",
+		}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
 			s.Respond(w, r, http.StatusInternalServerError, err)

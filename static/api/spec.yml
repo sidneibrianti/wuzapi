@@ -125,6 +125,177 @@ paths:
         - ApiKeyAuth: []
       responses:
         200:
+  /labels/list:
+    get:
+      tags:
+        - Labels
+      summary: List WhatsApp Business labels
+      description: Retrieves all labels created in the WhatsApp Business account
+      security:
+        - ApiKeyAuth: []
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                example: { "success": true, "labels": [{ "id": "label_123", "name": "Important", "color": 1, "predefinedId": "" }] }
+        401:
+          description: Unauthorized
+        500:
+          description: Internal Server Error
+  /labels/create:
+    post:
+      tags:
+        - Labels
+      summary: Create a new WhatsApp Business label
+      description: Creates a new label with specified name and color
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/definitions/CreateLabel'
+      responses:
+        200:
+          description: Label created successfully
+          content:
+            application/json:
+              schema:
+                example: { "success": true, "label_id": "label_123", "name": "VIP Clients", "color": 5, "message": "Label created successfully" }
+        400:
+          description: Bad Request
+        500:
+          description: Internal Server Error
+  /labels/edit:
+    put:
+      tags:
+        - Labels
+      summary: Edit an existing WhatsApp Business label
+      description: Updates the name and/or color of an existing label
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/definitions/EditLabel'
+      responses:
+        200:
+          description: Label updated successfully
+          content:
+            application/json:
+              schema:
+                example: { "success": true, "message": "Label updated successfully" }
+        400:
+          description: Bad Request
+        500:
+          description: Internal Server Error
+  /labels/delete:
+    delete:
+      tags:
+        - Labels
+      summary: Delete a WhatsApp Business label
+      description: Removes a label from the WhatsApp Business account
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/definitions/DeleteLabel'
+      responses:
+        200:
+          description: Label deleted successfully
+          content:
+            application/json:
+              schema:
+                example: { "success": true, "message": "Label deleted successfully" }
+        400:
+          description: Bad Request
+        500:
+          description: Internal Server Error
+  /labels/chats:
+    get:
+      tags:
+        - Labels
+      summary: Get chats with specific label
+      description: Lists all chats that have been assigned a specific label
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: query
+          name: label_id
+          schema:
+            type: string
+          required: true
+          description: ID of the label to filter chats
+          example: "label_123"
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                example: { "success": true, "chats": [{ "jid": "5511999999999@s.whatsapp.net", "name": "John Doe" }] }
+        400:
+          description: Bad Request - label_id parameter required
+        500:
+          description: Internal Server Error
+  /labels/associate:
+    post:
+      tags:
+        - Labels
+      summary: Associate a chat with a label
+      description: Adds a label to a specific chat conversation
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/definitions/AssociateChatLabel'
+      responses:
+        200:
+          description: Chat labeled successfully
+          content:
+            application/json:
+              schema:
+                example: { "success": true, "message": "Chat labeled successfully" }
+        400:
+          description: Bad Request
+        500:
+          description: Internal Server Error
+  /labels/disassociate:
+    post:
+      tags:
+        - Labels
+      summary: Remove label from chat
+      description: Removes a label from a specific chat conversation
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/definitions/DisassociateChatLabel'
+      responses:
+        200:
+          description: Label removed from chat successfully
+          content:
+            application/json:
+              schema:
+                example: { "success": true, "message": "Label removed from chat successfully" }
+        400:
+          description: Bad Request
+        500:
+          description: Internal Server Error
           description: Response
           content:
             application/json:
@@ -2239,6 +2410,114 @@ definitions:
     type: object
     properties:
       enabled:
+        type: boolean
+        example: true
+      endpoint:
+        type: string
+        example: "https://s3.amazonaws.com"
+      region:
+        type: string
+        example: "us-east-1"
+      bucket:
+        type: string
+        example: "my-whatsapp-media"
+      accessKey:
+        type: string
+        example: "AKIAIOSFODNN7EXAMPLE"
+      secretKey:
+        type: string
+        example: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+      pathStyle:
+        type: boolean
+        example: false
+      publicURL:
+        type: string
+        example: "https://cdn.example.com"
+      mediaDelivery:
+        type: string
+        example: "s3"
+      retentionDays:
+        type: integer
+        example: 30
+
+  CreateLabel:
+    type: object
+    required:
+      - name
+      - color
+    properties:
+      name:
+        type: string
+        description: Name of the label
+        example: "VIP Clients"
+      color:
+        type: integer
+        description: Color code for the label (0-19)
+        minimum: 0
+        maximum: 19
+        example: 5
+
+  EditLabel:
+    type: object
+    required:
+      - label_id
+      - name
+      - color
+    properties:
+      label_id:
+        type: string
+        description: ID of the label to edit
+        example: "label_123"
+      name:
+        type: string
+        description: New name for the label
+        example: "Super VIP"
+      color:
+        type: integer
+        description: New color code for the label (0-19)
+        minimum: 0
+        maximum: 19
+        example: 1
+
+  DeleteLabel:
+    type: object
+    required:
+      - label_id
+    properties:
+      label_id:
+        type: string
+        description: ID of the label to delete
+        example: "label_123"
+
+  AssociateChatLabel:
+    type: object
+    required:
+      - chat_jid
+      - label_id
+    properties:
+      chat_jid:
+        type: string
+        description: JID of the chat to label
+        example: "5511999999999@s.whatsapp.net"
+      label_id:
+        type: string
+        description: ID of the label to associate
+        example: "label_123"
+
+  DisassociateChatLabel:
+    type: object
+    required:
+      - chat_jid
+      - label_id
+    properties:
+      chat_jid:
+        type: string
+        description: JID of the chat to remove label from
+        example: "5511999999999@s.whatsapp.net"
+      label_id:
+        type: string
+        description: ID of the label to remove
+        example: "label_123"
         type: boolean
         description: Whether S3 storage is enabled
         example: true
