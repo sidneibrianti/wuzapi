@@ -140,6 +140,8 @@ func (s *server) routes() {
 
 	// Endpoints para gerenciamento de labels do WhatsApp
 	s.router.Handle("/labels/list", c.Then(s.ListLabels())).Methods("GET")
+	s.router.Handle("/labels/sync", c.Then(s.RequestLabelsSync())).Methods("POST")
+	s.router.Handle("/labels/common", c.Then(s.CreateCommonLabels())).Methods("POST")
 	s.router.Handle("/labels/create", c.Then(s.CreateLabel())).Methods("POST")
 	s.router.Handle("/labels/delete", c.Then(s.DeleteLabel())).Methods("DELETE")
 	s.router.Handle("/labels/edit", c.Then(s.EditLabel())).Methods("PUT")

@@ -139,9 +139,55 @@ paths:
           content:
             application/json:
               schema:
-                example: { "success": true, "labels": [{ "id": "label_123", "name": "Important", "color": 1, "predefinedId": "" }] }
+                example: { "success": true, "labels": [{ "id": "label_123", "name": "Important", "color": 1, "active": true }], "count": 1 }
         401:
           description: Unauthorized
+        500:
+          description: Internal Server Error
+  /labels/sync:
+    post:
+      tags:
+        - Labels
+      summary: Request labels synchronization
+      description: Requests synchronization of labels from WhatsApp servers via AppState events
+      security:
+        - ApiKeyAuth: []
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                example: { "success": true, "message": "Labels synchronization requested - check logs for app state events" }
+        400:
+          description: Client not connected
+        401:
+          description: Unauthorized
+        404:
+          description: Client not found
+        500:
+          description: Internal Server Error
+  /labels/common:
+    post:
+      tags:
+        - Labels
+      summary: Create common labels
+      description: Creates a predefined set of common labels (Important, Work, Family, Urgent, Pending, Completed)
+      security:
+        - ApiKeyAuth: []
+      responses:
+        200:
+          description: Success
+          content:
+            application/json:
+              schema:
+                example: { "success": true, "message": "Common labels created successfully", "labels": [{"id": "importante", "name": "⭐ Importante", "color": 0}] }
+        400:
+          description: Client not connected
+        401:
+          description: Unauthorized
+        404:
+          description: Client not found
         500:
           description: Internal Server Error
   /labels/create:
