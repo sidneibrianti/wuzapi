@@ -612,86 +612,6 @@ func (s *server) PairPhone() http.HandlerFunc {
 	}
 }
 
-// Gets Connected and LoggedIn Status
-func (s *server) GetStatus() http.HandlerFunc {
-
-	return func(w http.ResponseWriter, r *http.Request) {
-
-		userInfo := r.Context().Value("userinfo").(Values)
-
-		// Log all userinfo values
-		log.Info().
-			Str("Id", userInfo.Get("Id")).
-			Str("Jid", userInfo.Get("Jid")).
-			Str("Name", userInfo.Get("Name")).
-			Str("Webhook", userInfo.Get("Webhook")).
-			Str("Token", userInfo.Get("Token")).
-			Str("Events", userInfo.Get("Events")).
-			Str("Proxy", userInfo.Get("Proxy")).
-			Msg("User info values")
-
-		log.Info().Str("Name", userInfo.Get("Name")).Msg("User name")
-
-		txtid := userInfo.Get("Id")
-
-		/*
-			if clientManager.GetWhatsmeowClient(txtid) == nil {
-				s.Respond(w, r, http.StatusInternalServerError, errors.New("no session"))
-				return
-			}
-		*/
-
-		isConnected := clientManager.GetWhatsmeowClient(txtid).IsConnected()
-		isLoggedIn := clientManager.GetWhatsmeowClient(txtid).IsLoggedIn()
-
-		// Get proxy_config
-		var proxyURL string
-		s.db.QueryRow("SELECT proxy_url FROM users WHERE id = $1", txtid).Scan(&proxyURL)
-		proxyConfig := map[string]interface{}{
-			"enabled":   proxyURL != "",
-			"proxy_url": proxyURL,
-		}
-		// Get s3_config
-		var s3Enabled bool
-		var s3Endpoint, s3Region, s3Bucket, s3AccessKey, s3PublicURL, s3MediaDelivery string
-		var s3PathStyle bool
-		var s3RetentionDays int
-		s.db.QueryRow(`SELECT s3_enabled, s3_endpoint, s3_region, s3_bucket, s3_access_key, s3_path_style, s3_public_url, media_delivery, s3_retention_days FROM users WHERE id = $1`, txtid).Scan(&s3Enabled, &s3Endpoint, &s3Region, &s3Bucket, &s3AccessKey, &s3PathStyle, &s3PublicURL, &s3MediaDelivery, &s3RetentionDays)
-		s3Config := map[string]interface{}{
-			"enabled":        s3Enabled,
-			"endpoint":       s3Endpoint,
-			"region":         s3Region,
-			"bucket":         s3Bucket,
-			"access_key":     "***",
-			"path_style":     s3PathStyle,
-			"public_url":     s3PublicURL,
-			"media_delivery": s3MediaDelivery,
-			"retention_days": s3RetentionDays,
-		}
-		response := map[string]interface{}{
-			"id":           txtid,
-			"name":         userInfo.Get("Name"),
-			"connected":    isConnected,
-			"loggedIn":     isLoggedIn,
-			"token":        userInfo.Get("Token"),
-			"jid":          userInfo.Get("Jid"),
-			"webhook":      userInfo.Get("Webhook"),
-			"events":       userInfo.Get("Events"),
-			"proxy_url":    userInfo.Get("Proxy"),
-			"qrcode":       userInfo.Get("Qrcode"),
-			"proxy_config": proxyConfig,
-			"s3_config":    s3Config,
-		}
-		responseJson, err := json.Marshal(response)
-		if err != nil {
-			s.Respond(w, r, http.StatusInternalServerError, err)
-		} else {
-			s.Respond(w, r, http.StatusOK, string(responseJson))
-		}
-		return
-	}
-}
-
 // Sends a document/attachment message
 func (s *server) SendDocument() http.HandlerFunc {
 
@@ -4918,3 +4838,5 @@ func (s *server) DeleteS3Config() http.HandlerFunc {
 		}
 	}
 }
+
+// REFACTORING: Status handlers moved to handlers_status.go
