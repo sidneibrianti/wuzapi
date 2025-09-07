@@ -258,7 +258,7 @@ func (s *server) sendVideoStatus(mycli *MyClient, videoData []byte, mimeType, ca
 		Str("mime_type", mimeType).
 		Str("caption", caption).
 		Msg("Iniciando envio de status de vídeo")
-	
+
 	ctx := context.Background()
 
 	// Upload the video
@@ -397,14 +397,14 @@ func (s *server) isValidVideoMimeType(mimeType string) bool {
 	}
 
 	log.Debug().Str("mime_type", mimeType).Msg("Validando MIME type de vídeo")
-	
+
 	for _, validType := range validTypes {
 		if mimeType == validType {
 			log.Debug().Str("mime_type", mimeType).Msg("MIME type de vídeo válido")
 			return true
 		}
 	}
-	
+
 	log.Warn().Str("mime_type", mimeType).Msg("MIME type de vídeo inválido")
 	return false
 }
@@ -457,16 +457,16 @@ func (s *server) processVideoSource(video, source string) ([]byte, string, error
 		Str("source_type", source).
 		Str("video_length", fmt.Sprintf("%d", len(video))).
 		Msg("Iniciando processamento de vídeo")
-	
+
 	if video == "" {
 		log.Error().Msg("Dados de vídeo estão vazios")
 		return nil, "", fmt.Errorf("video data cannot be empty")
 	}
-	
+
 	var data []byte
 	var mimeType string
 	var err error
-	
+
 	switch source {
 	case "base64", "":
 		log.Debug().Msg("Processando vídeo como base64")
@@ -493,12 +493,12 @@ func (s *server) processVideoSource(video, source string) ([]byte, string, error
 		log.Error().Str("source", source).Msg("Tipo de source não suportado")
 		return nil, "", fmt.Errorf("unsupported source type: %s", source)
 	}
-	
+
 	log.Debug().
 		Str("mime_type", mimeType).
 		Int("data_size", len(data)).
 		Msg("Vídeo processado com sucesso")
-	
+
 	return data, mimeType, nil
 }
 
@@ -543,7 +543,7 @@ func (s *server) decodeBase64Video(data string) ([]byte, string, error) {
 		Bool("has_data_prefix", strings.HasPrefix(data, "data:video")).
 		Str("data_prefix", data[:min(50, len(data))]).
 		Msg("Decodificando base64 de vídeo")
-	
+
 	if strings.HasPrefix(data, "data:video") {
 		log.Debug().Msg("Processando data URL de vídeo")
 		dataURL, err := dataurl.DecodeString(data)
@@ -551,13 +551,13 @@ func (s *server) decodeBase64Video(data string) ([]byte, string, error) {
 			log.Error().Err(err).Msg("Erro ao decodificar data URL de vídeo")
 			return nil, "", fmt.Errorf("could not decode base64 data URL: %v", err)
 		}
-		
+
 		contentType := dataURL.MediaType.ContentType()
 		log.Debug().
 			Str("content_type", contentType).
 			Int("data_size", len(dataURL.Data)).
 			Msg("Data URL de vídeo decodificada com sucesso")
-		
+
 		return dataURL.Data, contentType, nil
 	}
 
@@ -573,7 +573,7 @@ func (s *server) decodeBase64Video(data string) ([]byte, string, error) {
 		Str("detected_mime_type", mimeType).
 		Int("decoded_size", len(decoded)).
 		Msg("Base64 de vídeo decodificado com sucesso")
-	
+
 	return decoded, mimeType, nil
 }
 
@@ -622,7 +622,7 @@ func (s *server) downloadImageFromURL(url string) ([]byte, string, error) {
 
 func (s *server) downloadVideoFromURL(url string) ([]byte, string, error) {
 	log.Debug().Str("url", url).Msg("Iniciando download de vídeo da URL")
-	
+
 	resp, err := http.Get(url)
 	if err != nil {
 		log.Error().Err(err).Str("url", url).Msg("Erro ao fazer request HTTP para vídeo")
@@ -706,13 +706,13 @@ func (s *server) readImageFromFile(path string) ([]byte, string, error) {
 
 func (s *server) readVideoFromFile(path string) ([]byte, string, error) {
 	log.Debug().Str("file_path", path).Msg("Lendo vídeo do arquivo")
-	
+
 	// Verificar se arquivo existe
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		log.Error().Str("file_path", path).Msg("Arquivo de vídeo não existe")
 		return nil, "", fmt.Errorf("video file does not exist: %s", path)
 	}
-	
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		log.Error().Err(err).Str("file_path", path).Msg("Erro ao ler arquivo de vídeo")

@@ -5635,7 +5635,7 @@ func (s *server) StatusSendVideo() http.HandlerFunc {
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		log.Info().Msg("Iniciando processamento de envio de status de vídeo")
-		
+
 		var req statusVideoRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			log.Error().Err(err).Msg("Erro ao decodificar payload JSON")
