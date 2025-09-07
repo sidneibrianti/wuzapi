@@ -5634,43 +5634,79 @@ func (s *server) StatusSendVideo() http.HandlerFunc {
 	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
+		log.Info().Msg("Iniciando processamento de envio de status de vídeo")
+		
 		var req statusVideoRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			log.Error().Err(err).Msg("Erro ao decodificar payload JSON")
 			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode Payload"))
 			return
 		}
 
+		log.Debug().
+			Str("source", req.Source).
+			Str("caption", req.Caption).
+			Int("video_length", len(req.Video)).
+			Msg("Request de vídeo decodificado")
+
 		mycli, err := s.getWAClient(r)
 		if err != nil {
+			log.Error().Err(err).Msg("Falha na autenticação do cliente WhatsApp")
 			s.Respond(w, r, http.StatusUnauthorized, errors.New("authentication failed"))
 			return
 		}
 
+		log.Debug().Msg("Cliente WhatsApp obtido com sucesso")
+
 		// Processar vídeo
+		log.Info().Str("source", req.Source).Msg("Iniciando processamento de vídeo")
 		videoData, mimeType, err := s.processVideoSource(req.Video, req.Source)
 		if err != nil {
+			log.Error().Err(err).Str("source", req.Source).Msg("Falha ao processar source de vídeo")
 			s.Respond(w, r, http.StatusBadRequest, errors.New("failed to process video"))
 			return
 		}
 
+		log.Info().
+			Str("mime_type", mimeType).
+			Int("video_size", len(videoData)).
+			Msg("Vídeo processado com sucesso")
+
 		// Validar formato
+		log.Debug().Str("mime_type", mimeType).Msg("Validando formato de vídeo")
 		if !s.isValidVideoMimeType(mimeType) {
+			log.Error().Str("mime_type", mimeType).Msg("Formato de vídeo não suportado")
 			s.Respond(w, r, http.StatusBadRequest, errors.New("unsupported video format"))
 			return
 		}
 
 		// Validar tamanho do vídeo
+		videoSizeMB := len(videoData) / (1024 * 1024)
+		log.Debug().Int("video_size_mb", videoSizeMB).Msg("Validando tamanho do vídeo")
 		if len(videoData) > 64*1024*1024 { // 64MB
+			log.Error().
+				Int("video_size_mb", videoSizeMB).
+				Msg("Vídeo muito grande - máximo 64MB")
 			s.Respond(w, r, http.StatusBadRequest, errors.New("video file too large - maximum size is 64MB"))
 			return
 		}
 
 		// Enviar status com vídeo
+		log.Info().
+			Str("mime_type", mimeType).
+			Int("video_size_mb", videoSizeMB).
+			Msg("Enviando status de vídeo para WhatsApp")
 		messageInfo, err := s.sendVideoStatus(mycli, videoData, mimeType, req.Caption)
 		if err != nil {
+			log.Error().Err(err).Msg("Erro ao enviar status de vídeo")
 			s.Respond(w, r, http.StatusInternalServerError, err)
 			return
 		}
+
+		log.Info().
+			Str("message_id", messageInfo.ID).
+			Time("timestamp", messageInfo.Timestamp).
+			Msg("Status de vídeo enviado com sucesso")
 
 		response := map[string]interface{}{
 			"message_id": messageInfo.ID,
@@ -5680,8 +5716,10 @@ func (s *server) StatusSendVideo() http.HandlerFunc {
 		}
 		responseJson, err := json.Marshal(response)
 		if err != nil {
+			log.Error().Err(err).Msg("Erro ao serializar response JSON")
 			s.Respond(w, r, http.StatusInternalServerError, err)
 		} else {
+			log.Debug().Str("response", string(responseJson)).Msg("Response JSON criado")
 			s.Respond(w, r, http.StatusOK, string(responseJson))
 		}
 	}
