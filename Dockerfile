@@ -1,8 +1,12 @@
 FROM golang:1.24-bullseye AS builder
 
-# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     pkg-config \
@@ -19,7 +23,12 @@ RUN go build -o wuzapi
 
 FROM debian:bullseye-slim
 
-# Install runtime dependencies in a single layer
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install runtime dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
     netcat-openbsd \
@@ -28,7 +37,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ffmpeg \
     tzdata \
-    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
 ENV TZ="America/Sao_Paulo"

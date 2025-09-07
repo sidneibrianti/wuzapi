@@ -44,11 +44,6 @@ var supportedEventTypes = []string{
 	"OfflineSyncCompleted",
 	"OfflineSyncPreview",
 
-	// Labels
-	"LabelEdit",
-	"LabelAssociationChat",
-	"LabelAssociationMessage",
-
 	// Calls
 	"CallOffer",
 	"CallAccept",
