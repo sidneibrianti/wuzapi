@@ -1021,7 +1021,7 @@ func (mycli *MyClient) myEventHandler(rawEvt interface{}) {
 		dowebhook = 1
 	case *events.AppState:
 		log.Info().Str("index", fmt.Sprintf("%+v", evt.Index)).Str("actionValue", fmt.Sprintf("%+v", evt.SyncActionValue)).Msg("App state event received")
-		
+
 		// Processar eventos de labels se aplicável
 		if labelResult := mycli.processLabelEvents(evt, postmap); labelResult > 0 {
 			dowebhook = labelResult
