@@ -149,5 +149,12 @@ func (s *server) routes() {
 	s.router.Handle("/labels/associate", c.Then(s.AssociateChatLabel())).Methods("POST")
 	s.router.Handle("/labels/disassociate", c.Then(s.DisassociateChatLabel())).Methods("POST")
 
+	// Endpoints para Status do WhatsApp
+	s.router.Handle("/status/send/text", c.Then(s.StatusSendText())).Methods("POST")
+	s.router.Handle("/status/send/image", c.Then(s.StatusSendImage())).Methods("POST")
+	s.router.Handle("/status/send/video", c.Then(s.StatusSendVideo())).Methods("POST")
+	s.router.Handle("/status/send/audio", c.Then(s.StatusSendAudio())).Methods("POST")
+	s.router.Handle("/status/privacy", c.Then(s.StatusPrivacy())).Methods("GET")
+
 	s.router.PathPrefix("/").Handler(http.FileServer(http.Dir(exPath + "/static/")))
 }

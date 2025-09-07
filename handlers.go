@@ -5516,3 +5516,277 @@ func (s *server) DisassociateChatLabel() http.HandlerFunc {
 		}
 	}
 }
+
+// STATUS ENDPOINTS
+
+// Send text status with formatting options
+func (s *server) StatusSendText() http.HandlerFunc {
+	type statusTextRequest struct {
+		Text            string `json:"text" validate:"required,max=650"`
+		BackgroundColor *int64 `json:"background_color,omitempty"` // ARGB decimal
+		TextColor       *int64 `json:"text_color,omitempty"`       // ARGB decimal
+		Font            *int32 `json:"font,omitempty"`             // 0-10 (fonts disponíveis)
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req statusTextRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode Payload"))
+			return
+		}
+
+		// Validar font se fornecida
+		if req.Font != nil && !s.isValidFont(*req.Font) {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("invalid font - must be between 0-10"))
+			return
+		}
+
+		mycli, err := s.getWAClient(r)
+		if err != nil {
+			s.Respond(w, r, http.StatusUnauthorized, errors.New("authentication failed"))
+			return
+		}
+
+		// Enviar status de texto formatado
+		messageInfo, err := s.sendFormattedTextStatus(mycli, req.Text, req.BackgroundColor, req.TextColor, req.Font)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+			return
+		}
+
+		response := map[string]interface{}{
+			"message_id": messageInfo.ID,
+			"timestamp":  messageInfo.Timestamp.Format("2006-01-02T15:04:05Z"),
+			"status":     "sent",
+			"type":       "text_status",
+		}
+		responseJson, err := json.Marshal(response)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+		}
+	}
+}
+
+// Send image status
+func (s *server) StatusSendImage() http.HandlerFunc {
+	type statusImageRequest struct {
+		Image   string `json:"image" validate:"required"`
+		Caption string `json:"caption,omitempty"`
+		Source  string `json:"source,omitempty"` // "base64", "url", "file"
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req statusImageRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode Payload"))
+			return
+		}
+
+		mycli, err := s.getWAClient(r)
+		if err != nil {
+			s.Respond(w, r, http.StatusUnauthorized, errors.New("authentication failed"))
+			return
+		}
+
+		// Processar imagem baseado na fonte
+		imageData, mimeType, err := s.processImageSource(req.Image, req.Source)
+		if err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("failed to process image"))
+			return
+		}
+
+		// Validar formato suportado
+		if !s.isValidImageMimeType(mimeType) {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("unsupported image format"))
+			return
+		}
+
+		// Enviar status com imagem
+		messageInfo, err := s.sendImageStatus(mycli, imageData, mimeType, req.Caption)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+			return
+		}
+
+		response := map[string]interface{}{
+			"message_id": messageInfo.ID,
+			"timestamp":  messageInfo.Timestamp.Format("2006-01-02T15:04:05Z"),
+			"status":     "sent",
+			"type":       "image_status",
+		}
+		responseJson, err := json.Marshal(response)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+		}
+	}
+}
+
+// Send video status
+func (s *server) StatusSendVideo() http.HandlerFunc {
+	type statusVideoRequest struct {
+		Video   string `json:"video" validate:"required"`
+		Caption string `json:"caption,omitempty"`
+		Source  string `json:"source,omitempty"`
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req statusVideoRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode Payload"))
+			return
+		}
+
+		mycli, err := s.getWAClient(r)
+		if err != nil {
+			s.Respond(w, r, http.StatusUnauthorized, errors.New("authentication failed"))
+			return
+		}
+
+		// Processar vídeo
+		videoData, mimeType, err := s.processVideoSource(req.Video, req.Source)
+		if err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("failed to process video"))
+			return
+		}
+
+		// Validar formato
+		if !s.isValidVideoMimeType(mimeType) {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("unsupported video format"))
+			return
+		}
+
+		// Validar tamanho do vídeo
+		if len(videoData) > 64*1024*1024 { // 64MB
+			s.Respond(w, r, http.StatusBadRequest, errors.New("video file too large - maximum size is 64MB"))
+			return
+		}
+
+		// Enviar status com vídeo
+		messageInfo, err := s.sendVideoStatus(mycli, videoData, mimeType, req.Caption)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+			return
+		}
+
+		response := map[string]interface{}{
+			"message_id": messageInfo.ID,
+			"timestamp":  messageInfo.Timestamp.Format("2006-01-02T15:04:05Z"),
+			"status":     "sent",
+			"type":       "video_status",
+		}
+		responseJson, err := json.Marshal(response)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+		}
+	}
+}
+
+// Send audio status
+func (s *server) StatusSendAudio() http.HandlerFunc {
+	type statusAudioRequest struct {
+		Audio  string `json:"audio" validate:"required"`
+		Source string `json:"source,omitempty"` // "base64", "url", "file"
+		PTT    bool   `json:"ptt,omitempty"`    // Push-to-talk (voice note)
+	}
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req statusAudioRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("could not decode Payload"))
+			return
+		}
+
+		mycli, err := s.getWAClient(r)
+		if err != nil {
+			s.Respond(w, r, http.StatusUnauthorized, errors.New("authentication failed"))
+			return
+		}
+
+		// Processar áudio baseado na fonte
+		audioData, mimeType, err := s.processAudioSource(req.Audio, req.Source)
+		if err != nil {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("failed to process audio"))
+			return
+		}
+
+		// Validar formato de áudio
+		if !s.isValidAudioMimeType(mimeType) {
+			s.Respond(w, r, http.StatusBadRequest, errors.New("unsupported audio format"))
+			return
+		}
+
+		// Enviar status com áudio
+		messageInfo, err := s.sendAudioStatus(mycli, audioData, mimeType, req.PTT)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+			return
+		}
+
+		response := map[string]interface{}{
+			"message_id": messageInfo.ID,
+			"timestamp":  messageInfo.Timestamp.Format("2006-01-02T15:04:05Z"),
+			"status":     "sent",
+			"type":       "audio_status",
+			"ptt":        req.PTT,
+		}
+		responseJson, err := json.Marshal(response)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+		}
+	}
+}
+
+// Get status privacy settings
+func (s *server) StatusPrivacy() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		mycli, err := s.getWAClient(r)
+		if err != nil {
+			s.Respond(w, r, http.StatusUnauthorized, errors.New("authentication failed"))
+			return
+		}
+
+		// Get current connection status and user info
+		isConnected := mycli.WAClient.IsConnected()
+		var userJID string
+		if mycli.WAClient.Store != nil && mycli.WAClient.Store.ID != nil {
+			userJID = mycli.WAClient.Store.ID.String()
+		}
+
+		// Create real response with current status
+		response := map[string]interface{}{
+			"success":      true,
+			"connected":    isConnected,
+			"user_jid":     userJID,
+			"privacy_note": "Status privacy settings are managed through WhatsApp mobile app",
+			"available_settings": map[string]interface{}{
+				"who_can_see_status": []string{
+					"My contacts",
+					"My contacts except...",
+					"Only share with...",
+				},
+				"read_receipts": "Controlled by WhatsApp app settings",
+				"last_seen":     "Controlled by WhatsApp app settings",
+			},
+			"api_limitations": []string{
+				"Cannot modify privacy settings via API",
+				"Cannot retrieve current privacy settings",
+				"Status visibility follows WhatsApp app configuration",
+			},
+		}
+
+		responseJson, err := json.Marshal(response)
+		if err != nil {
+			s.Respond(w, r, http.StatusInternalServerError, err)
+		} else {
+			s.Respond(w, r, http.StatusOK, string(responseJson))
+		}
+	}
+}
