@@ -11,12 +11,12 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/rs/zerolog/log"
 	"github.com/vincent-petithory/dataurl"
+	"go.mau.fi/whatsmeow"
 	waE2E "go.mau.fi/whatsmeow/proto/waE2E"
 	"go.mau.fi/whatsmeow/types"
 	"google.golang.org/protobuf/proto"
-	"go.mau.fi/whatsmeow"
-	"github.com/rs/zerolog/log"
 )
 
 // STATUS HELPER FUNCTIONS
