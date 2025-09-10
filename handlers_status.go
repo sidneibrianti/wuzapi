@@ -9,52 +9,7 @@ import (
 )
 
 // ========== STATUS HANDLERS ==========
-
-// Gets Connected and LoggedIn Status
-func (s *server) GetStatus() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		userInfo := r.Context().Value("userinfo").(Values)
-
-		// Log all userinfo values
-		log.Info().
-			Str("Id", userInfo.Get("Id")).
-			Str("Jid", userInfo.Get("Jid")).
-			Str("Name", userInfo.Get("Name")).
-			Str("Webhook", userInfo.Get("Webhook")).
-			Str("Token", userInfo.Get("Token")).
-			Str("Events", userInfo.Get("Events")).
-			Str("Proxy", userInfo.Get("Proxy")).
-			Msg("User info values")
-
-		log.Info().Str("Name", userInfo.Get("Name")).Msg("User name")
-
-		txtid := userInfo.Get("Id")
-
-		isConnected := clientManager.GetWhatsmeowClient(txtid).IsConnected()
-		isLoggedIn := clientManager.GetWhatsmeowClient(txtid).IsLoggedIn()
-
-		// Get proxy_config
-		var proxyURL string
-		s.db.QueryRow("SELECT proxy_url FROM users WHERE id = $1", txtid).Scan(&proxyURL)
-		proxyConfig := map[string]interface{}{
-			"enabled": proxyURL != "",
-			"url":     proxyURL,
-		}
-
-		response := map[string]interface{}{
-			"connected":    isConnected,
-			"loggedin":     isLoggedIn,
-			"proxy_config": proxyConfig,
-		}
-
-		responseJson, err := json.Marshal(response)
-		if err != nil {
-			s.Respond(w, r, http.StatusInternalServerError, err)
-		} else {
-			s.Respond(w, r, http.StatusOK, string(responseJson))
-		}
-	}
-}
+// Note: GetStatus handler is in handlers.go for comprehensive user info
 
 // Send text status with formatting options
 func (s *server) StatusSendText() http.HandlerFunc {
